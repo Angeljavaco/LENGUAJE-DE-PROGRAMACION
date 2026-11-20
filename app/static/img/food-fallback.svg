@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" role="img" aria-labelledby="title desc">
+  <title id="title">Ilustración de alimentos frescos</title>
+  <desc id="desc">Frutas, verduras y hojas sobre un fondo verde suave.</desc>
+  <rect width="900" height="650" fill="#e8f2e8"/>
+  <circle cx="770" cy="104" r="78" fill="#f7f3e9"/>
+  <path d="M0 500c190-76 309-45 468 10s286 54 432-8v148H0Z" fill="#d4e5d4"/>
+  <ellipse cx="445" cy="490" rx="280" ry="61" fill="#245c38" opacity=".12"/>
+  <path d="M270 365c17 111 67 167 177 167s160-56 177-167H270Z" fill="#fff"/>
+  <path d="M283 371c92 37 236 37 328 0" fill="none" stroke="#d6e5d6" stroke-width="10"/>
+  <circle cx="360" cy="330" r="77" fill="#e99a3c"/>
+  <path d="M353 252c-4-26 9-41 31-47 5 20-4 37-31 47Z" fill="#2e7d46"/>
+  <path d="M354 251c-27-22-50-20-66-5 18 18 40 20 66 5Z" fill="#4e915d"/>
+  <circle cx="526" cy="331" r="76" fill="#d85846"/>
+  <path d="M525 255c-3-33 15-46 37-47 2 22-11 39-37 47Z" fill="#245c38"/>
+  <path d="M524 257c-21-27-47-29-67-14 16 22 40 28 67 14Z" fill="#3f844e"/>
+  <path d="M440 275c-34-52-83-55-111-25 22 41 61 53 111 25Z" fill="#528c53"/>
+  <path d="M442 275c28-58 75-68 109-43-17 45-53 64-109 43Z" fill="#347645"/>
+  <path d="M441 276c-13 41-14 72-1 99" fill="none" stroke="#245c38" stroke-width="8" stroke-linecap="round"/>
+  <path d="M190 498c35-31 67-48 101-53M614 494c36-30 74-47 110-53" fill="none" stroke="#87aa81" stroke-width="8" stroke-linecap="round"/>
+</svg>

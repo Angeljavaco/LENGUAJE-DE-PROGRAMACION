@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Reportes e impacto · Desperdicio Cero{% endblock %}
+{% block content %}
+<div class="page-wrap"><section class="page-head row"><div><span class="eyebrow">REPORTES DE ACTIVIDAD</span><h1>Datos para seguir avanzando.</h1><p>Publicaciones asociadas a tu cuenta y entregas registradas. Las unidades se muestran por separado.</p></div><div class="report-actions"><a class="button button-outline" href="{{ url_for('main.export_xlsx') }}">Descargar Excel ↗</a><a class="button" href="{{ url_for('main.export_pdf') }}">Descargar PDF ↗</a></div></section>
+  <div class="stats">{% for unit,total in totals %}<div class="stat"><small>Inventario restante · {{ unit }}</small><strong>{{ '%.2f'|format(total or 0) }}</strong></div>{% endfor %}{% for unit,total in delivery_totals.items() %}<div class="stat"><small>Entregado · {{ unit }}</small><strong>{{ '%.2f'|format(total) }}</strong></div>{% endfor %}<div class="stat"><small>Publicaciones relacionadas</small><strong>{{ foods|length }}</strong></div></div>
+  <section class="panel" data-reveal><div class="section-head"><div><span class="eyebrow">RESUMEN</span><h2>Publicaciones por categoría</h2></div></div><div class="report-chart"><canvas id="categoryChart" aria-label="Gráfico de publicaciones por categoría" role="img"></canvas></div><div class="table-wrap"><table><thead><tr><th>Alimento</th><th>Categoría</th><th>Cantidad restante</th><th>Ubicación</th><th>Estado</th></tr></thead><tbody>{% for food in foods %}<tr><td>{{ food.name }}{% if current_user.role=='administrador' %}<small>{{ food.donor.name }}</small>{% endif %}</td><td>{{ food.category }}</td><td>{{ '%g'|format(food.quantity) }} {{ food.unit }}</td><td>{{ food.district or food.department or '—' }}</td><td><span class="tag">{{ food.status }}</span></td></tr>{% else %}<tr><td colspan="5">Aún no hay datos relacionados con esta cuenta.</td></tr>{% endfor %}</tbody></table></div></section>
+</div>
+{% endblock %}
+{% block scripts %}<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script><script>
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('categoryChart');
+  const rows = {{ foods|map(attribute='category')|list|tojson }};
+  const counts = {};
+  rows.forEach((category) => { counts[category] = (counts[category] || 0) + 1; });
+  if (canvas && window.Chart) new Chart(canvas, {type:'bar', data:{labels:Object.keys(counts), datasets:[{label:'Publicaciones',data:Object.values(counts),backgroundColor:'#2e7d46',borderRadius:7,maxBarThickness:46}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#edf0e9'}},x:{grid:{display:false}}}}});
+});
+</script>{% endblock %}

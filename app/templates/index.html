@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="home-hero">
+  <div class="hero-grid">
+    <div class="hero-copy" data-reveal>
+      <span class="eyebrow">ALIMENTOS CON PROPÓSITO · PERÚ</span>
+      <h1>Cada alimento merece <em>una segunda oportunidad.</em></h1>
+      <p>Conectamos negocios, comunidades y personas para transformar alimentos disponibles en oportunidades y reducir el desperdicio.</p>
+      <div class="hero-actions"><a class="button" href="{{ url_for('auth.register') }}">Quiero donar alimentos <span aria-hidden="true">↗</span></a><a class="button button-outline" href="{{ url_for('main.catalog') }}">Necesito alimentos</a></div>
+      <div class="hero-note"><span class="hero-note-mark" aria-hidden="true">✓</span><span>Una conexión local, directa y con propósito.</span></div>
+    </div>
+    <div class="hero-visual" data-reveal>
+      <div class="hero-photo"><img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1500&q=85" data-fallback="{{ url_for('static',filename='img/food-fallback.svg') }}" alt="Puestos de mercado con frutas y verduras frescas" fetchpriority="high"><span class="photo-tint"></span><span class="hero-image-caption">Lo que se comparte<br>puede alimentar mucho más.</span></div>
+      <div class="hero-sticker"><strong>MENOS<br>DESPERDICIO</strong><span>más oportunidades</span></div>
+      <div class="hero-photo-foot"><span class="mini-leaves" aria-hidden="true">✳</span><span><b>Alimentos que encuentran su lugar</b><small>Donantes y beneficiarios, conectados.</small></span></div>
+    </div>
+  </div>
+</section>
+
+<section class="home-section" id="about">
+  <div class="section-inner about-grid">
+    <div class="about-photo-wrap" data-reveal><div class="about-photo"><img src="https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=1200&q=82" data-fallback="{{ url_for('static',filename='img/food-fallback.svg') }}" alt="Personas colaborando en una iniciativa comunitaria de alimentos" loading="lazy" decoding="async"></div><div class="about-photo-label"><strong>Pequeñas acciones.<br>Grandes cambios.</strong><span>Una comunidad que aprovecha mejor lo que ya existe.</span></div></div>
+    <div class="about-copy" data-reveal><span class="eyebrow">SOBRE DESPERDICIO CERO</span><h2>Una conexión sencilla puede cambiar el destino de un alimento.</h2><p>Desperdicio Cero ayuda a que los excedentes disponibles lleguen a personas y organizaciones que pueden aprovecharlos. Publicar, coordinar y confirmar en un mismo lugar hace más fácil actuar a tiempo.</p><ul class="about-points"><li>Visibiliza alimentos disponibles antes de que se pierdan.</li><li>Acerca a donantes con beneficiarios de su comunidad.</li><li>Permite dar seguimiento a solicitudes y entregas.</li></ul><a class="button button-outline" href="{{ url_for('main.catalog') }}">Conoce los alimentos disponibles <span aria-hidden="true">→</span></a></div>
+  </div>
+</section>
+
+<section class="home-section how-section" id="how-it-works">
+  <div class="section-inner"><div class="section-heading centered" data-reveal><span class="eyebrow">ASÍ FUNCIONA</span><h2>Tres pasos para aprovechar más.</h2><p>Un flujo claro para coordinar una donación, desde la publicación hasta la confirmación de recepción.</p></div>
+    <div class="steps-grid">
+      <article class="step-card" data-reveal><div class="step-top"><span class="step-number">01 / PUBLICA</span><span class="step-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></svg></span></div><h3>Publica alimentos disponibles</h3><p>Comparte qué alimento tienes, cuánto hay y hasta cuándo puede aprovecharse.</p></article>
+      <article class="step-card" data-reveal><div class="step-top"><span class="step-number">02 / CONECTA</span><span class="step-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19v-1.2A4.8 4.8 0 0 1 8.3 13h1.4a4.8 4.8 0 0 1 4.8 4.8V19M16 5.5a3 3 0 0 1 0 5.8M17 14h.7a3.8 3.8 0 0 1 3.8 3.8V19"/></svg></span></div><h3>Conecta con tu comunidad</h3><p>Las personas beneficiarias consultan el catálogo y solicitan la cantidad que necesitan.</p></article>
+      <article class="step-card" data-reveal><div class="step-top"><span class="step-number">03 / COMPARTE</span><span class="step-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5 9.2 18 20 6.5"/><path d="M4 4h10M4 8h6"/></svg></span></div><h3>Coordina y confirma</h3><p>El donante coordina la entrega y el beneficiario confirma la recepción en la plataforma.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="home-section impact-section" id="impact">
+  <div class="section-inner"><div class="impact-heading" data-reveal><div><span class="eyebrow eyebrow-light">NUESTRO IMPACTO</span><h2>El impacto se construye con cada entrega.</h2></div><p>Indicadores calculados con publicaciones, usuarios y entregas registradas en esta plataforma.</p></div>
+    <div class="impact-grid">
+      <div class="impact-stat" data-reveal><strong><span data-count="{{ impact.kilograms }}" data-decimals="1">{{ '%.1f'|format(impact.kilograms) }}</span><small> kg</small></strong><span>Alimentos entregados registrados en kilogramos</span></div>
+      <div class="impact-stat" data-reveal><strong data-count="{{ impact.donations }}">{{ impact.donations }}</strong><span>Donaciones completadas o recibidas</span></div>
+      <div class="impact-stat" data-reveal><strong data-count="{{ impact.beneficiaries }}">{{ impact.beneficiaries }}</strong><span>Beneficiarios atendidos</span></div>
+      <div class="impact-stat" data-reveal><strong data-count="{{ impact.donors }}">{{ impact.donors }}</strong><span>Donantes registrados</span></div>
+      <div class="impact-stat" data-reveal><strong data-count="{{ impact.foods }}">{{ impact.foods }}</strong><span>Alimentos publicados</span></div>
+    </div>
+    <p class="impact-disclaimer">Los kilogramos reflejan solo entregas registradas en kg. Las demás unidades se conservan por separado.</p>
+  </div>
+</section>
+
+<section class="home-section food-section" id="available-food">
+  <div class="section-inner"><div class="section-heading-row" data-reveal><div class="section-heading"><span class="eyebrow">ALIMENTOS DISPONIBLES</span><h2>Una nueva oportunidad puede empezar aquí.</h2><p>Publicaciones activas de donantes de la comunidad. Revisa cantidad, ubicación y fecha de consumo preferente.</p></div><a class="button button-outline" href="{{ url_for('main.catalog') }}">Explorar catálogo <span aria-hidden="true">→</span></a></div>
+    <div class="food-grid">
+      {% for food in foods %}
+        {% set photo = {'Frutas':'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=1000&q=80','Verduras':'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1000&q=80','Panadería':'https://images.unsplash.com/photo-1608198093002-ad4e00548486?auto=format&fit=crop&w=1000&q=80','Lácteos':'https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=1000&q=80'}.get(food.category,'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=80') %}
+        <article class="food-card" data-reveal><div class="food-card-photo"><img src="{{ photo }}" data-fallback="{{ url_for('static',filename='img/food-fallback.svg') }}" alt="Alimentos disponibles: {{ food.name }}" loading="lazy" decoding="async"></div><div class="food-card-body"><div class="food-card-top"><span class="tag">{{ food.category }}</span><span class="status-badge">{{ food.status }}</span></div><h3>{{ food.name }}</h3><div class="food-card-meta"><span>◉ {{ '%g'|format(available[food.id]) }} {{ food.unit }} disponibles</span><span>⌖ {{ food.district or food.province or food.department or 'Perú' }}</span><span>◷ Hasta {{ food.expiry_date.strftime('%d/%m/%Y') }}</span></div><a class="button button-outline button-small" href="{{ url_for('main.catalog', q=food.name) }}">Consultar alimento <span aria-hidden="true">→</span></a></div></article>
+      {% else %}
+        <div class="empty-state food-grid-empty" data-reveal><h3>Estamos preparando nuevas oportunidades.</h3><p>Aún no hay alimentos disponibles publicados. Si tienes excedentes, puedes compartirlos con la comunidad.</p><a class="button" href="{{ url_for('auth.register') }}">Quiero publicar una donación</a></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="home-section community-section">
+  <div class="section-inner community-card" data-reveal><div class="community-copy"><span class="eyebrow">ALIMENTAR TAMBIÉN ES CONECTAR</span><h2>Una comunidad que se organiza, aprovecha mejor.</h2><p>Detrás de cada publicación hay una decisión responsable; detrás de cada solicitud, una necesidad concreta. La plataforma ayuda a que ambas encuentren un momento y un lugar.</p><a class="button" href="{{ url_for('auth.register') }}">Forma parte de la comunidad <span aria-hidden="true">↗</span></a></div><div class="community-visual"><img src="https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=1300&q=82" data-fallback="{{ url_for('static',filename='img/food-fallback.svg') }}" alt="Colaboración comunitaria para compartir alimentos" loading="lazy" decoding="async"></div></div>
+</section>
+
+<section class="home-section" aria-labelledby="sources-title">
+  <div class="section-inner"><div class="section-heading centered" data-reveal><span class="eyebrow">INFORMACIÓN Y REDES</span><h2 id="sources-title">Un esfuerzo local, conectado con más iniciativas.</h2><p>Conoce fuentes públicas y organizaciones que trabajan por un mejor aprovechamiento de los alimentos. Su presencia aquí no implica una alianza formal.</p></div>
+    <div class="sources-grid"><article class="source-card" data-reveal><span class="source-symbol" aria-hidden="true">D</span><h3>Datos abiertos del Perú</h3><p>Consulta conjuntos y recursos públicos desde el portal nacional de datos abiertos.</p><a href="https://www.datosabiertos.gob.pe/" target="_blank" rel="noopener">Visitar portal ↗</a></article><article class="source-card" data-reveal><span class="source-symbol" aria-hidden="true">B</span><h3>Banco de Alimentos Perú</h3><p>Conoce el trabajo institucional de una organización peruana dedicada a recuperar y redistribuir alimentos.</p><a href="https://bancodealimentosperu.org/" target="_blank" rel="noopener">Conocer la organización ↗</a></article><article class="source-card" data-reveal><span class="source-symbol" aria-hidden="true">↗</span><h3>Inteligencia alimentaria</h3><p>La administración puede explorar metadatos sincronizados de conjuntos relacionados con alimentación.</p>{% if current_user.is_authenticated and current_user.role=='administrador' %}<a href="{{ url_for('main.intelligence') }}">Ver fuentes conectadas ↗</a>{% else %}<a href="{{ url_for('auth.register') }}">Súmate a la plataforma ↗</a>{% endif %}</article></div>
+  </div>
+</section>
+
+<section class="final-cta"><div class="final-cta-inner" data-reveal><div class="cta-copy"><span class="eyebrow">CADA APORTE CUENTA</span><h2>Un alimento que se aprovecha es una oportunidad que no se pierde.</h2></div><div class="hero-actions"><a class="button button-light" href="{{ url_for('auth.register') }}">Conviértete en donante <span aria-hidden="true">↗</span></a><a class="button button-outline" href="{{ url_for('main.catalog') }}">Encuentra alimentos</a></div></div></section>
+{% endblock %}
