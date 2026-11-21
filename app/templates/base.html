@@ -19,23 +19,48 @@
       <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M31.2 8.7C19.4 8.2 10.1 12.6 9.7 21.1c-.2 4.7 3.2 7.8 7.5 7.8 9.1 0 13.1-10.6 14-20.2Z"/><path d="M8.7 32c4.1-7.1 9.4-11.4 17.2-14.8"/></svg></span>
       <span class="brand-name">DESPERDICIO <b>CERO</b></span>
     </a>
-    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Abrir navegación"><span></span><span></span><span></span></button>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+      <span class="menu-toggle-icon" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span class="menu-toggle-label">Menú</span>
+    </button>
     <nav id="site-nav" class="site-nav" aria-label="Navegación principal">
-      <a href="{{ url_for('main.index') }}">Inicio</a>
-      <a href="{{ url_for('main.index') }}#about">Nosotros</a>
-      <a href="{{ url_for('main.index') }}#how-it-works">Cómo funciona</a>
-      <a href="{{ url_for('main.catalog') }}">Alimentos disponibles</a>
-      <a href="{{ url_for('main.index') }}#impact">Impacto</a>
-      {% if current_user.is_authenticated %}
-        <a class="nav-login" href="{{ url_for('main.dashboard') }}">Mi panel</a>
-        <a href="{{ url_for('main.reports') }}">Reportes</a>
-        <a href="{{ url_for('main.alerts') }}">Alertas</a>
-        {% if current_user.role=='administrador' %}<a href="{{ url_for('main.people') }}">Personas</a><a href="{{ url_for('main.intelligence') }}">Fuentes</a>{% endif %}
-        <form action="{{ url_for('auth.logout') }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="nav-login" type="submit">Salir</button></form>
+      {% macro nav_link(endpoint, label, emphasized=false) -%}
+        <a href="{{ url_for(endpoint) }}"{% if emphasized %} class="button button-nav"{% endif %}{% if request.endpoint == endpoint %} aria-current="page"{% endif %}>{{ label }}</a>
+      {%- endmacro %}
+      {% set role = current_user.role if current_user.is_authenticated else none %}
+      {% if role == 'donante' %}
+        {{ nav_link('main.food_new', 'Publicar alimento', true) }}
+        {{ nav_link('main.dashboard', 'Mi panel') }}
+        {{ nav_link('main.alerts', 'Alertas') }}
+        {{ nav_link('main.reports', 'Reportes') }}
+        {{ nav_link('main.catalog', 'Ver alimentos') }}
+      {% elif role == 'administrador' %}
+        {{ nav_link('main.dashboard', 'Ir al panel', true) }}
+        {{ nav_link('main.people', 'Personas') }}
+        {{ nav_link('main.reports', 'Reportes') }}
+        {{ nav_link('main.intelligence', 'Fuentes') }}
+        {{ nav_link('main.alerts', 'Alertas') }}
+        {{ nav_link('main.catalog', 'Ver alimentos') }}
+      {% elif current_user.is_authenticated %}
+        {{ nav_link('main.catalog', 'Ver alimentos', true) }}
+        {{ nav_link('main.dashboard', 'Mi panel') }}
+        {{ nav_link('main.alerts', 'Alertas') }}
+        {{ nav_link('main.reports', 'Reportes') }}
       {% else %}
-        <a class="nav-login" href="{{ url_for('auth.login') }}">Iniciar sesión</a>
+        <a class="button button-nav" href="{{ url_for('auth.register', rol='donante') }}"{% if request.endpoint == 'auth.register' and request.args.get('rol') == 'donante' %} aria-current="page"{% endif %}>Quiero donar</a>
+        {{ nav_link('main.catalog', 'Ver alimentos') }}
+        {{ nav_link('auth.login', 'Iniciar sesión') }}
       {% endif %}
-      <a class="button button-nav" href="{{ url_for('auth.register') }}">Quiero donar <span aria-hidden="true">↗</span></a>
+      <a href="{{ url_for('main.index') }}#how-it-works">Cómo funciona</a>
+      <a href="{{ url_for('main.index') }}#about">Nosotros</a>
+      <a href="{{ url_for('main.index') }}#impact">Impacto</a>
+      {% if config['CONTACT_EMAIL'] %}<a href="#contacto">Contacto</a>{% endif %}
+      {% if current_user.is_authenticated %}
+        <form action="{{ url_for('auth.logout') }}" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="nav-logout" type="submit">Salir</button>
+        </form>
+      {% endif %}
     </nav>
   </header>
 
@@ -51,7 +76,7 @@
       <div class="footer-about">
         <a class="brand brand-footer" href="{{ url_for('main.index') }}"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M31.2 8.7C19.4 8.2 10.1 12.6 9.7 21.1c-.2 4.7 3.2 7.8 7.5 7.8 9.1 0 13.1-10.6 14-20.2Z"/><path d="M8.7 32c4.1-7.1 9.4-11.4 17.2-14.8"/></svg></span><span class="brand-name">DESPERDICIO <b>CERO</b></span></a>
         <p>Alimentos con propósito. Un encuentro más justo entre lo disponible y quien lo necesita.</p>
-        {% if config['CONTACT_EMAIL'] %}<a class="footer-contact" href="mailto:{{ config['CONTACT_EMAIL'] }}">{{ config['CONTACT_EMAIL'] }}</a>{% endif %}
+        {% if config['CONTACT_EMAIL'] %}<a id="contacto" class="footer-contact" href="mailto:{{ config['CONTACT_EMAIL'] }}">{{ config['CONTACT_EMAIL'] }}</a>{% endif %}
         <div class="social-links" aria-label="Redes sociales configuradas">
           {% if config['SOCIAL_INSTAGRAM_URL'] %}<a href="{{ config['SOCIAL_INSTAGRAM_URL'] }}" target="_blank" rel="noopener">Instagram</a>{% endif %}
           {% if config['SOCIAL_FACEBOOK_URL'] %}<a href="{{ config['SOCIAL_FACEBOOK_URL'] }}" target="_blank" rel="noopener">Facebook</a>{% endif %}
