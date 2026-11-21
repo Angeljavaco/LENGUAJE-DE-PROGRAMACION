@@ -3,24 +3,29 @@
 
   const toggle = document.querySelector('.menu-toggle');
   const nav = document.querySelector('#site-nav');
-  if (toggle && nav) {
-    const closeMenu = () => {
-      nav.classList.remove('is-open');
-      toggle.setAttribute('aria-expanded', 'false');
-      toggle.setAttribute('aria-label', 'Abrir navegación');
+  const menuLabel = toggle?.querySelector('.menu-toggle-label');
+  if (toggle && nav && menuLabel) {
+    const mobile = window.matchMedia('(max-width: 1200px)');
+    const isOpen = () => toggle.getAttribute('aria-expanded') === 'true';
+    const setMenuOpen = (open) => {
+      toggle.setAttribute('aria-expanded', String(open));
+      menuLabel.textContent = open ? 'Cerrar' : 'Menú';
+      nav.classList.toggle('is-open', open);
     };
     toggle.addEventListener('click', () => {
-      const open = toggle.getAttribute('aria-expanded') !== 'true';
-      toggle.setAttribute('aria-expanded', String(open));
-      toggle.setAttribute('aria-label', open ? 'Cerrar navegación' : 'Abrir navegación');
-      nav.classList.toggle('is-open', open);
+      setMenuOpen(!isOpen());
     });
-    nav.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu));
+    document.addEventListener('click', (event) => {
+      if (!isOpen() || toggle.contains(event.target)) return;
+      if (!nav.contains(event.target) || event.target.closest('a')) setMenuOpen(false);
+    });
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') closeMenu();
+      if (event.key !== 'Escape' || !isOpen()) return;
+      setMenuOpen(false);
+      toggle.focus();
     });
-    window.addEventListener('resize', () => {
-      if (window.innerWidth > 1200) closeMenu();
+    mobile.addEventListener('change', (event) => {
+      if (!event.matches) setMenuOpen(false);
     });
   }
 
