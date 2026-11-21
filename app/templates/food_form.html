@@ -1,5 +1,71 @@
 {% extends 'base.html' %}
-{% block title %}Publicar alimentos · Desperdicio Cero{% endblock %}
+{% set title = 'Editar publicación' if food else 'Publicar alimento' %}
+{% block title %}{{ title }} · Desperdicio Cero{% endblock %}
 {% block content %}
-<div class="page-wrap"><section class="page-head"><span class="eyebrow">UNA DONACIÓN EMPIEZA AQUÍ</span><h1>Publicar alimento</h1><p>Comparte los datos necesarios para que la comunidad encuentre y solicite tu publicación.</p></section><form class="panel wide food-form-card" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="form-grid"><label>Nombre del alimento<input name="name" maxlength="140" placeholder="Ej. Plátanos maduros" required></label><label>Categoría<select name="category" required>{% for category in categories %}<option>{{ category }}</option>{% endfor %}</select></label><label>Cantidad disponible<input name="quantity" type="number" step="0.01" min="0.01" placeholder="0.00" required></label><label>Unidad<select name="unit" required>{% for unit in ['kg','gramos','unidades','litros','paquetes'] %}<option>{{ unit }}</option>{% endfor %}</select></label><label>Disponible desde<input name="available_date" type="date" value="{{ today }}" required></label><label>Disponible hasta<input name="expiry_date" type="date" min="{{ today }}" required></label><label>Provincia<input name="province" maxlength="80" placeholder="Provincia"></label><label>Distrito<input name="district" maxlength="80" placeholder="Distrito"></label><label>Dirección de entrega<input name="address" maxlength="240" placeholder="Punto de recojo o entrega"></label><label>Conservación<input name="storage" maxlength="240" placeholder="Refrigerado, ambiente..."></label></div><label>Descripción<textarea name="description" rows="3" placeholder="Detalles relevantes para quien recibirá el alimento"></textarea></label><div class="actions"><button class="button" type="submit">Publicar alimento <span aria-hidden="true">↗</span></button><a class="button button-outline" href="{{ url_for('main.dashboard') }}">Volver al panel</a></div></form></div>
+<div class="page-wrap">
+  <section class="page-head">
+    <h1>{{ title }}</h1>
+    {% if food %}
+      <p>Actualiza los datos y el saldo total de la publicación, incluidas las cantidades reservadas.</p>
+    {% else %}
+      <p>Comparte los datos necesarios para que la comunidad encuentre y solicite tu publicación.</p>
+    {% endif %}
+  </section>
+  <form class="panel wide food-form-card" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if food %}<input type="hidden" name="original_quantity" value="{{ food.quantity }}">{% endif %}
+    {% if reserved %}
+      <p id="stock-reservation"><strong>{{ '%g'|format(reserved) }} {{ food.unit }} reservados.</strong>
+        La cantidad total debe cubrir esta reserva.</p>
+    {% endif %}
+    <div class="form-grid">
+      <label>Nombre del alimento
+        <input name="name" maxlength="140" placeholder="Ej. Plátanos maduros" value="{{ values.get('name') or '' }}" required>
+      </label>
+      <label>Categoría
+        <select name="category" required>
+          {% for category in categories %}
+            <option{% if values.get('category') == category %} selected{% endif %}>{{ category }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>{{ 'Cantidad total restante' if food else 'Cantidad disponible' }}
+        <input name="quantity" type="number" step="any" min="{{ 0 if food else 0.01 }}" placeholder="0.00"
+               value="{{ values.get('quantity', '') }}"{% if reserved %} aria-describedby="stock-reservation"{% endif %} required>
+      </label>
+      <label>Unidad
+        <select name="unit" required>
+          {% for unit in units %}
+            <option{% if values.get('unit') == unit %} selected{% endif %}>{{ unit }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Disponible desde
+        <input name="available_date" type="date" value="{{ values.get('available_date', '') }}" required>
+      </label>
+      <label>Disponible hasta
+        <input name="expiry_date" type="date" value="{{ values.get('expiry_date', '') }}"{% if not food %} min="{{ today }}"{% endif %} required>
+      </label>
+      <label>Provincia
+        <input name="province" maxlength="80" placeholder="Provincia" value="{{ values.get('province') or '' }}">
+      </label>
+      <label>Distrito
+        <input name="district" maxlength="80" placeholder="Distrito" value="{{ values.get('district') or '' }}">
+      </label>
+      <label>Dirección de entrega
+        <input name="address" maxlength="240" placeholder="Punto de recojo o entrega" value="{{ values.get('address') or '' }}">
+      </label>
+      <label>Conservación
+        <input name="storage" maxlength="240" placeholder="Refrigerado, ambiente..." value="{{ values.get('storage') or '' }}">
+      </label>
+    </div>
+    <label>Descripción
+      <textarea name="description" rows="3" placeholder="Detalles relevantes para quien recibirá el alimento">{{ values.get('description') or '' }}</textarea>
+    </label>
+    <div class="actions">
+      <button class="button" type="submit">{{ 'Guardar cambios' if food else 'Publicar alimento' }}</button>
+      <a class="button button-outline" href="{{ url_for('main.dashboard') }}">Volver al panel</a>
+    </div>
+  </form>
+</div>
 {% endblock %}

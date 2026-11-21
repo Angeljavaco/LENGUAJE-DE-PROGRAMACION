@@ -7,19 +7,19 @@ from app import db
 from app.models import User, Food, Request, Alert, ExternalData, ExternalSync, Activity
 from app.services.alerts import generate_alerts
 from app.services.integrations import sync_open_data
+from app.services.inventory import (
+    CATEGORIES, UNITS, InventoryConflict, exceeds_quantity, lock_food,
+    reserved_quantities, reserved_quantity, update_stock_status, validate_inventory_change,
+)
 
 bp = Blueprint("main", __name__)
-CATEGORIES = ["Frutas", "Verduras", "Panadería", "Lácteos", "Carnes", "Productos envasados", "Bebidas", "Otros"]
+FOOD_FORM_FIELDS = (
+    "name", "category", "quantity", "unit", "available_date", "expiry_date",
+    "province", "district", "address", "storage", "description",
+)
 
 def log(action, details=""):
     db.session.add(Activity(user_id=current_user.id if current_user.is_authenticated else None, action=action, details=details)); db.session.commit()
-
-def reserved_quantities(food_ids):
-    if not food_ids: return {}
-    rows = db.session.query(Request.food_id, func.sum(Request.quantity)).filter(
-        Request.food_id.in_(food_ids), Request.status.in_(["Aceptada", "En coordinación"])
-    ).group_by(Request.food_id).all()
-    return {food_id: quantity for food_id, quantity in rows}
 
 @bp.get("/")
 def index():
@@ -74,7 +74,9 @@ def dashboard():
         stats.update(my_foods=len(foods), my_available=Food.query.filter_by(donor_id=current_user.id).filter(Food.status.in_(["Disponible", "Parcialmente disponible"]), Food.available_date <= today, Food.expiry_date >= today).count(), my_pending=Request.query.join(Food).filter(Food.donor_id == current_user.id, Request.status == "Pendiente").count(), my_deliveries=len(delivered))
     elif current_user.role == "beneficiario":
         stats.update(my_requests=len(received), my_pending=sum(item.status == "Pendiente" for item in received), my_accepted=sum(item.status in ("Aceptada", "En coordinación") for item in received), my_received=sum(item.status in ("Entregada", "Recibida") for item in received))
-    return render_template("dashboard.html", foods=foods, requests=requests, stats=stats, alerts=alerts, categories=CATEGORIES, recommended=recommended, recommended_available=recommended_available)
+    return render_template("dashboard.html", foods=foods, requests=requests, stats=stats, alerts=alerts, categories=CATEGORIES,
+                           recommended=recommended, recommended_available=recommended_available,
+                           reserved=reserved_quantities([food.id for food in foods]))
 
 @bp.get("/people")
 @login_required
@@ -106,27 +108,98 @@ def catalog():
     available = {food.id: max(0, food.quantity - reserved.get(food.id, 0)) for food in foods}
     return render_template("catalog.html", foods=foods, categories=CATEGORIES, available=available, availability=availability, location=location)
 
+def food_form(food=None):
+    today = date.today()
+    if request.method == "POST" and food is not None:
+        lock_food(food)
+        if food.status == "Cancelado":
+            flash("No se puede editar una publicación cancelada.", "error")
+            return redirect(url_for("main.dashboard"))
+        if request.form.get("original_quantity", str(food.quantity)) != str(food.quantity):
+            flash("El saldo cambió mientras editabas. Revisa la cantidad actual antes de guardar.", "error")
+            return redirect(url_for("main.food_edit", food_id=food.id))
+    reserved = reserved_quantity(food.id) if food is not None else 0
+    if request.method == "POST":
+        values = {field: request.form.get(field, "").strip() for field in FOOD_FORM_FIELDS}
+        try:
+            try:
+                quantity = float(values["quantity"])
+                available = date.fromisoformat(values["available_date"])
+                expiry = date.fromisoformat(values["expiry_date"])
+            except ValueError as error:
+                raise ValueError("Revisa la cantidad y las fechas ingresadas.") from error
+            if not values["name"]:
+                raise ValueError("Indica el nombre del alimento.")
+            if values["category"] not in CATEGORIES or values["unit"] not in UNITS:
+                raise ValueError("Selecciona una categoría y una unidad válidas.")
+            if not isfinite(quantity) or quantity < 0 or (food is None and quantity == 0):
+                raise ValueError("Indica una cantidad válida.")
+            if available > expiry or (expiry < today and (food is None or expiry != food.expiry_date)):
+                raise ValueError("Revisa las fechas de disponibilidad y vencimiento.")
+            if food is not None:
+                validate_inventory_change(food, reserved, quantity=quantity, unit=values["unit"], status=food.status)
+        except ValueError as error:
+            flash(str(error), "error")
+        else:
+            changes = {**values, "quantity": quantity, "available_date": available, "expiry_date": expiry}
+            if food is None:
+                food = Food(**changes, donor_id=current_user.id, department=current_user.department)
+                db.session.add(food)
+                action, message = "alimento_creado", "Publicación guardada."
+            else:
+                for field, value in changes.items():
+                    setattr(food, field, value)
+                update_stock_status(food, reserved)
+                action, message = "alimento_actualizado", "Publicación actualizada."
+            log(action, food.name)
+            flash(message, "success")
+            return redirect(url_for("main.dashboard"))
+    elif food is not None:
+        values = {field: getattr(food, field) for field in FOOD_FORM_FIELDS}
+    else:
+        values = {"available_date": today}
+    return render_template(
+        "food_form.html", categories=CATEGORIES, units=UNITS, today=today,
+        food=food, values=values, reserved=reserved,
+    )
+
+
 @bp.route("/foods/new", methods=["GET", "POST"])
 @login_required
 def food_new():
-    if current_user.role not in ("donante", "administrador"): abort(403)
-    if request.method == "POST":
-        try:
-            qty = float(request.form["quantity"]); available = date.fromisoformat(request.form["available_date"]); expiry = date.fromisoformat(request.form["expiry_date"])
-            name = request.form["name"].strip()
-            category, unit = request.form["category"], request.form["unit"]
-            if not name or category not in CATEGORIES or unit not in ("kg", "gramos", "unidades", "litros", "paquetes") or not isfinite(qty) or qty <= 0 or expiry < date.today() or available > expiry: raise ValueError("Cantidad o fechas no válidas.")
-            food = Food(name=name, description=request.form.get("description", "").strip(), category=category, quantity=qty, unit=unit, available_date=available, expiry_date=expiry, department=current_user.department, province=request.form.get("province", "").strip(), district=request.form.get("district", "").strip(), address=request.form.get("address", "").strip(), storage=request.form.get("storage", "").strip(), donor_id=current_user.id)
-            db.session.add(food); db.session.commit(); log("alimento_creado", food.name); flash("Publicación guardada.", "success"); return redirect(url_for("main.dashboard"))
-        except (ValueError, KeyError): flash("Revisa cantidad y fechas. No se aceptan cantidades negativas ni alimentos vencidos.", "error")
-    return render_template("food_form.html", categories=CATEGORIES, today=date.today().isoformat())
+    if current_user.role not in ("donante", "administrador"):
+        abort(403)
+    return food_form()
+
+
+@bp.route("/foods/<int:food_id>/edit", methods=["GET", "POST"])
+@login_required
+def food_edit(food_id):
+    food = db.get_or_404(Food, food_id)
+    if food.donor_id != current_user.id and current_user.role != "administrador":
+        abort(403)
+    if food.status == "Cancelado":
+        flash("No se puede editar una publicación cancelada.", "error")
+        return redirect(url_for("main.dashboard"))
+    return food_form(food)
+
 
 @bp.post("/foods/<int:food_id>/delete")
 @login_required
 def food_delete(food_id):
     food = db.get_or_404(Food, food_id)
-    if food.donor_id != current_user.id and current_user.role != "administrador": abort(403)
-    food.status = "Cancelado"; db.session.commit(); log("alimento_cancelado", food.name); return redirect(url_for("main.dashboard"))
+    if food.donor_id != current_user.id and current_user.role != "administrador":
+        abort(403)
+    lock_food(food)
+    reserved = reserved_quantity(food.id)
+    try:
+        validate_inventory_change(food, reserved, quantity=food.quantity, unit=food.unit, status="Cancelado")
+    except InventoryConflict as error:
+        flash(str(error), "error")
+    else:
+        food.status = "Cancelado"
+        log("alimento_cancelado", food.name)
+    return redirect(url_for("main.dashboard"))
 
 @bp.post("/foods/<int:food_id>/request")
 @login_required
@@ -135,11 +208,12 @@ def request_food(food_id):
     try: quantity = float(request.form.get("quantity", "0"))
     except (TypeError, ValueError): quantity = 0
     if current_user.role not in ("beneficiario", "administrador") or food.donor_id == current_user.id: abort(403)
+    lock_food(food)
     if food.status not in ("Disponible", "Parcialmente disponible") or food.available_date > date.today() or food.expiry_date < date.today():
         flash("Este alimento no está disponible para solicitudes.", "error")
         return redirect(url_for("main.catalog"))
-    reserved = db.session.query(func.coalesce(func.sum(Request.quantity), 0)).filter(Request.food_id == food.id, Request.status.in_(["Aceptada", "En coordinación"])).scalar()
-    if not isfinite(quantity) or quantity <= 0 or quantity + reserved > food.quantity: flash("La cantidad supera la disponibilidad.", "error")
+    reserved = reserved_quantity(food.id)
+    if not isfinite(quantity) or quantity <= 0 or exceeds_quantity(quantity + reserved, food.quantity): flash("La cantidad supera la disponibilidad.", "error")
     else:
         db.session.add(Request(food_id=food.id, beneficiary_id=current_user.id, quantity=quantity)); db.session.commit(); log("solicitud_creada", str(food.id)); flash("Solicitud enviada al donante.", "success")
     return redirect(url_for("main.catalog"))
@@ -150,14 +224,19 @@ def request_action(req_id, action):
     req = db.get_or_404(Request, req_id)
     if req.food.donor_id != current_user.id and current_user.role != "administrador": abort(403)
     if action not in ("accept", "reject", "deliver"): abort(400)
+    lock_food(req.food)
+    db.session.refresh(req)
     if action == "accept":
         if req.status != "Pendiente": abort(400)
         if req.food.status not in ("Disponible", "Parcialmente disponible") or req.food.available_date > date.today() or req.food.expiry_date < date.today():
             flash("El alimento ya no está disponible.", "error")
             return redirect(url_for("main.dashboard"))
-        reserved = db.session.query(func.coalesce(func.sum(Request.quantity), 0)).filter(Request.food_id == req.food_id, Request.status.in_(["Aceptada", "En coordinación"])).scalar()
-        if reserved + req.quantity > req.food.quantity: flash("Ya no hay cantidad suficiente.", "error")
-        else: req.status = "Aceptada"; req.food.status = "Reservado" if reserved + req.quantity == req.food.quantity else "Parcialmente disponible"
+        reserved = reserved_quantity(req.food_id)
+        if exceeds_quantity(reserved + req.quantity, req.food.quantity):
+            flash("Ya no hay cantidad suficiente.", "error")
+            return redirect(url_for("main.dashboard"))
+        req.status = "Aceptada"
+        update_stock_status(req.food, reserved + req.quantity)
     elif action == "reject":
         if req.status != "Pendiente": abort(400)
         req.status = "Rechazada"
@@ -165,12 +244,9 @@ def request_action(req_id, action):
         if req.status not in ("Aceptada", "En coordinación"): abort(400)
         req.status = "Entregada"
         req.food.quantity = max(0, req.food.quantity - req.quantity)
-        reserved_after = db.session.query(func.coalesce(func.sum(Request.quantity), 0)).filter(Request.food_id == req.food_id, Request.status.in_(["Aceptada", "En coordinación"])).scalar()
-        if req.food.quantity == 0: req.food.status = "Agotado"
-        elif reserved_after >= req.food.quantity: req.food.status = "Reservado"
-        elif reserved_after > 0: req.food.status = "Parcialmente disponible"
-        else: req.food.status = "Disponible"
-    db.session.commit(); log("solicitud_actualizada", req.status); return redirect(url_for("main.dashboard"))
+        update_stock_status(req.food, reserved_quantity(req.food_id))
+    log("solicitud_actualizada", req.status)
+    return redirect(url_for("main.dashboard"))
 
 @bp.post("/requests/<int:req_id>/received")
 @login_required
