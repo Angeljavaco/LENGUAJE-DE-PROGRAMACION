@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from sqlalchemy import func, or_
 from app import db
-from app.models import User, Food, Request, Alert, ExternalData, ExternalSync, Activity
+from app.models import User, Food, Request, Alert, ExternalData, ExternalSync, Activity, Conversation
 from app.services.alerts import generate_alerts
 from app.services.integrations import sync_open_data
 from app.services.inventory import (
@@ -17,6 +17,29 @@ FOOD_FORM_FIELDS = (
     "name", "category", "quantity", "unit", "available_date", "expiry_date",
     "province", "district", "address", "storage", "description",
 )
+
+@bp.get("/messages")
+@login_required
+def messages():
+    if current_user.role not in ("donante", "beneficiario"):
+        abort(403)
+    selected = request.args.get("conversation", type=int)
+    return render_template("messages.html", selected_conversation=selected)
+
+@bp.post("/foods/<int:food_id>/contact")
+@login_required
+def contact_donor(food_id):
+    food = db.get_or_404(Food, food_id)
+    if current_user.role != "beneficiario" or food.donor_id == current_user.id:
+        abort(403)
+    req = Request.query.filter_by(food_id=food.id, beneficiary_id=current_user.id).order_by(Request.created_at.desc()).first()
+    conversation = Conversation.query.filter_by(donor_id=food.donor_id, beneficiary_id=current_user.id, food_id=food.id).first()
+    if conversation is None:
+        conversation = Conversation(donor_id=food.donor_id, beneficiary_id=current_user.id, food_id=food.id, request_id=req.id if req else None)
+        db.session.add(conversation); db.session.commit()
+    elif req and conversation.request_id is None:
+        conversation.request_id = req.id; db.session.commit()
+    return redirect(url_for("main.messages", conversation=conversation.id))
 
 def log(action, details=""):
     db.session.add(Activity(user_id=current_user.id if current_user.is_authenticated else None, action=action, details=details)); db.session.commit()

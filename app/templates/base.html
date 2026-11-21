@@ -31,6 +31,7 @@
       {% if role == 'donante' %}
         {{ nav_link('main.food_new', 'Publicar alimento', true) }}
         {{ nav_link('main.dashboard', 'Mi panel') }}
+        {{ nav_link('main.messages', 'Mensajes') }}
         {{ nav_link('main.alerts', 'Alertas') }}
         {{ nav_link('main.reports', 'Reportes') }}
         {{ nav_link('main.catalog', 'Ver alimentos') }}
@@ -44,6 +45,7 @@
       {% elif current_user.is_authenticated %}
         {{ nav_link('main.catalog', 'Ver alimentos', true) }}
         {{ nav_link('main.dashboard', 'Mi panel') }}
+        {{ nav_link('main.messages', 'Mensajes') }}
         {{ nav_link('main.alerts', 'Alertas') }}
         {{ nav_link('main.reports', 'Reportes') }}
       {% else %}

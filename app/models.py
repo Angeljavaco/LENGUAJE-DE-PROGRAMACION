@@ -52,6 +52,34 @@ class Request(db.Model):
     food = db.relationship("Food", backref="requests")
     beneficiary = db.relationship("User", backref="requests")
 
+class Conversation(db.Model):
+    __tablename__ = "conversaciones"
+    id = db.Column(db.Integer, primary_key=True)
+    donor_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
+    beneficiary_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
+    food_id = db.Column(db.Integer, db.ForeignKey("alimentos.id"), nullable=False, index=True)
+    request_id = db.Column(db.Integer, db.ForeignKey("solicitudes.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    status = db.Column(db.String(20), default="activa", nullable=False)
+    donor = db.relationship("User", foreign_keys=[donor_id])
+    beneficiary = db.relationship("User", foreign_keys=[beneficiary_id])
+    food = db.relationship("Food")
+    request = db.relationship("Request")
+    messages = db.relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at")
+    __table_args__ = (db.UniqueConstraint("donor_id", "beneficiary_id", "food_id", name="uq_conversation_participants_food"),)
+
+class Message(db.Model):
+    __tablename__ = "mensajes"
+    id = db.Column(db.Integer, primary_key=True)
+    conversation_id = db.Column(db.Integer, db.ForeignKey("conversaciones.id", ondelete="CASCADE"), nullable=False, index=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
+    content = db.Column(db.String(2000), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    is_read = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    sender = db.relationship("User")
+    conversation = db.relationship("Conversation", back_populates="messages")
+
 class Alert(db.Model):
     __tablename__ = "alertas"
     id = db.Column(db.Integer, primary_key=True)

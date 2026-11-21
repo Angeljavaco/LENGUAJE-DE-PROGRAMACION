@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import date, datetime
 from math import isfinite
 from flask import Blueprint, request, jsonify, abort
 from flask_login import login_required, current_user
+from sqlalchemy import or_
 from app import db
-from app.models import Food, Request, Alert, User
+from app.models import Food, Request, Alert, User, Conversation, Message
 from app.services.integrations import sync_open_data
 from app.services.inventory import (
     CATEGORIES, UNITS, InventoryConflict, exceeds_quantity, lock_food,
@@ -11,6 +12,105 @@ from app.services.inventory import (
 )
 
 bp = Blueprint("api", __name__)
+
+def conversation_for_user(conversation_id):
+    conversation = db.get_or_404(Conversation, conversation_id)
+    if current_user.id not in (conversation.donor_id, conversation.beneficiary_id):
+        abort(403)
+    return conversation
+
+def message_json(message):
+    return {"id": message.id, "conversation_id": message.conversation_id,
+            "sender_id": message.sender_id, "sender_name": message.sender.name,
+            "content": message.content, "created_at": message.created_at.isoformat() + "Z",
+            "is_read": message.is_read}
+
+def conversation_json(conversation):
+    contact = conversation.beneficiary if current_user.id == conversation.donor_id else conversation.donor
+    last = Message.query.filter_by(conversation_id=conversation.id).order_by(Message.created_at.desc(), Message.id.desc()).first()
+    unread = Message.query.filter_by(conversation_id=conversation.id, is_read=False).filter(Message.sender_id != current_user.id).count()
+    return {"id": conversation.id, "food_id": conversation.food_id, "food_name": conversation.food.name,
+            "contact": {"id": contact.id, "name": contact.name, "role": contact.role},
+            "request_id": conversation.request_id, "unread_count": unread,
+            "last_message": message_json(last) if last else None,
+            "updated_at": conversation.updated_at.isoformat() + "Z"}
+
+@bp.get("/conversations/unread-count")
+@login_required
+def conversations_unread_count():
+    ids = db.session.query(Conversation.id).filter(or_(Conversation.donor_id == current_user.id, Conversation.beneficiary_id == current_user.id))
+    count = Message.query.filter(Message.conversation_id.in_(ids), Message.sender_id != current_user.id, Message.is_read.is_(False)).count()
+    return jsonify(count=count)
+
+@bp.get("/conversations")
+@login_required
+def conversations_list():
+    query = Conversation.query.filter(or_(Conversation.donor_id == current_user.id, Conversation.beneficiary_id == current_user.id))
+    items = query.order_by(Conversation.updated_at.desc(), Conversation.id.desc()).all()
+    return jsonify([conversation_json(item) for item in items])
+
+@bp.post("/conversations")
+@login_required
+def conversation_create():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict): return jsonify(error="Datos inválidos"), 400
+    if current_user.role != "beneficiario": abort(403)
+    try: food_id = int(data.get("food_id"))
+    except (TypeError, ValueError): return jsonify(error="Alimento inválido"), 400
+    food = db.session.get(Food, food_id)
+    if not food: return jsonify(error="Alimento no encontrado"), 404
+    if food.donor_id == current_user.id: abort(403)
+    req = None
+    if data.get("request_id") is not None:
+        try: req = db.session.get(Request, int(data["request_id"]))
+        except (TypeError, ValueError): req = None
+        if not req or req.food_id != food.id or req.beneficiary_id != current_user.id:
+            return jsonify(error="Solicitud inválida"), 400
+    conversation = Conversation.query.filter_by(donor_id=food.donor_id, beneficiary_id=current_user.id, food_id=food.id).first()
+    if conversation is None:
+        conversation = Conversation(donor_id=food.donor_id, beneficiary_id=current_user.id, food_id=food.id, request_id=req.id if req else None)
+        db.session.add(conversation)
+        db.session.commit()
+    elif req and conversation.request_id is None:
+        conversation.request_id = req.id
+        db.session.commit()
+    return jsonify(conversation_json(conversation)), 201
+
+@bp.get("/conversations/<int:conversation_id>/messages")
+@login_required
+def conversation_messages(conversation_id):
+    conversation = conversation_for_user(conversation_id)
+    messages = Message.query.filter_by(conversation_id=conversation.id).order_by(Message.created_at, Message.id).all()
+    changed = False
+    for message in messages:
+        if message.sender_id != current_user.id and not message.is_read:
+            message.is_read = True; changed = True
+    if changed: db.session.commit()
+    return jsonify([message_json(item) for item in messages])
+
+@bp.post("/conversations/<int:conversation_id>/messages")
+@login_required
+def conversation_send_message(conversation_id):
+    conversation = conversation_for_user(conversation_id)
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict): return jsonify(error="Datos inválidos"), 400
+    content = data.get("content")
+    if not isinstance(content, str) or not content.strip(): return jsonify(error="El mensaje no puede estar vacío"), 400
+    content = content.strip()
+    if len(content) > 2000: return jsonify(error="El mensaje supera los 2000 caracteres"), 400
+    message = Message(conversation_id=conversation.id, sender_id=current_user.id, content=content)
+    conversation.updated_at = datetime.utcnow()
+    db.session.add(message); db.session.commit()
+    return jsonify(message_json(message)), 201
+
+@bp.patch("/messages/<int:message_id>/read")
+@login_required
+def message_mark_read(message_id):
+    message = db.get_or_404(Message, message_id)
+    conversation_for_user(message.conversation_id)
+    if message.sender_id != current_user.id and not message.is_read:
+        message.is_read = True; db.session.commit()
+    return jsonify(ok=True)
 
 @bp.get("/alimentos")
 def foods():
