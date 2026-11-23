@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Verificación de Correo · Desperdicio Cero{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <div class="panel auth" id="confirm-card" style="text-align: center;">
+    <span class="eyebrow">DESPERDICIO CERO · AUTENTICACIÓN</span>
+    <h1 id="confirm-title">Verificando tu cuenta...</h1>
+    <p id="confirm-msg" class="auth-intro">Procesando la confirmación de tu correo electrónico con Supabase.</p>
+    
+    <div id="confirm-spinner" style="margin: 20px auto; width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: var(--green-brand, #245c38); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    
+    <div id="confirm-actions" style="display: none; margin-top: 24px;">
+      <a id="confirm-btn" href="{{ url_for('auth.login') }}" class="button full">Iniciar sesión</a>
+    </div>
+  </div>
+</section>
+
+<style>
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash || window.location.search);
+  
+  const accessToken = params.get("access_token");
+  const errorDescription = params.get("error_description");
+  const errorCode = params.get("error_code");
+  const titleEl = document.getElementById("confirm-title");
+  const msgEl = document.getElementById("confirm-msg");
+  const spinnerEl = document.getElementById("confirm-spinner");
+  const actionsEl = document.getElementById("confirm-actions");
+  const btnEl = document.getElementById("confirm-btn");
+
+  if (errorDescription || errorCode) {
+    spinnerEl.style.display = "none";
+    titleEl.textContent = "Error de verificación";
+    msgEl.textContent = decodeURIComponent(errorDescription || "El enlace de verificación no es válido o ya fue utilizado.");
+    actionsEl.style.display = "block";
+    btnEl.textContent = "Solicitar nuevo correo";
+    btnEl.href = "{{ url_for('auth.resend_verification') }}";
+    return;
+  }
+
+  if (accessToken) {
+    let email = "";
+    try {
+      // Decode payload from JWT
+      const base64Url = accessToken.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const parsed = JSON.parse(jsonPayload);
+      email = parsed.email || "";
+    } catch(e) {}
+
+    fetch("{{ url_for('auth.confirm_session') }}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token() }}"
+      },
+      body: JSON.stringify({ email: email })
+    }).then(function(res) { return res.json(); })
+      .then(function(data) {
+        window.location.href = data.redirect || "{{ url_for('auth.login') }}";
+      }).catch(function() {
+        spinnerEl.style.display = "none";
+        titleEl.textContent = "¡Correo verificado!";
+        msgEl.textContent = "Tu cuenta ha sido confirmada correctamente.";
+        actionsEl.style.display = "block";
+        btnEl.textContent = "Iniciar sesión ahora";
+        btnEl.href = "{{ url_for('auth.login') }}";
+      });
+    return;
+  }
+
+  // Si no hay parámetros en el hash ni error
+  setTimeout(function() {
+    spinnerEl.style.display = "none";
+    titleEl.textContent = "Verificación completada";
+    msgEl.textContent = "Si confirmaste tu correo, ya puedes ingresar a la plataforma con tus credenciales.";
+    actionsEl.style.display = "block";
+    btnEl.textContent = "Ir a Iniciar sesión";
+  }, 1200);
+});
+</script>
+{% endblock %}

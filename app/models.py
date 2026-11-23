@@ -15,6 +15,8 @@ class User(UserMixin, db.Model):
     district = db.Column(db.String(80), default="")
     business = db.Column(db.String(160), default="")
     is_demo = db.Column(db.Boolean, default=False, nullable=False)
+    is_verified = db.Column(db.Boolean, default=False, nullable=False)
+    supabase_uid = db.Column(db.String(64), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     def set_password(self, value): self.password_hash = generate_password_hash(value)
     def check_password(self, value): return check_password_hash(self.password_hash, value)
