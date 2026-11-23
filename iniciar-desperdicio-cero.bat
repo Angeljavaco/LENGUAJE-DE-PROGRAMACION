@@ -17,7 +17,10 @@ if not exist ".venv\.deps-ready" (
 
 if not exist ".env" copy ".env.example" ".env" >nul
 echo.
-echo DESPERDICIO CERO estara disponible en http://127.0.0.1:5000
+echo DESPERDICIO CERO estara disponible en:
+echo   - En esta PC: http://localhost:5000 (o http://127.0.0.1:5000)
+echo   - En tu celular (conectado al mismo WiFi): http://192.168.1.14:5000
+echo.
 echo Deja esta ventana abierta. Pulsa Ctrl+C para detener el servidor.
 echo.
 ".venv\Scripts\python.exe" run.py

@@ -37,11 +37,24 @@ document.addEventListener("DOMContentLoaded", function() {
 
   if (errorDescription || errorCode) {
     spinnerEl.style.display = "none";
-    titleEl.textContent = "Error de verificación";
-    msgEl.textContent = decodeURIComponent(errorDescription || "El enlace de verificación no es válido o ya fue utilizado.");
-    actionsEl.style.display = "block";
-    btnEl.textContent = "Solicitar nuevo correo";
-    btnEl.href = "{{ url_for('auth.resend_verification') }}";
+    if (errorCode === "otp_expired") {
+      titleEl.textContent = "Enlace ya utilizado o expirado";
+      msgEl.innerHTML = "Este enlace de confirmación ya fue procesado (por ejemplo, si lo abriste previamente en tu celular) o ha caducado.<br><br><strong>Si ya hiciste clic en tu teléfono, tu cuenta ya está confirmada en Supabase.</strong> Intenta iniciar sesión ahora.";
+      actionsEl.style.display = "block";
+      btnEl.textContent = "Iniciar sesión";
+      btnEl.href = "{{ url_for('auth.login') }}";
+      
+      const resendLink = document.createElement("p");
+      resendLink.style.marginTop = "14px";
+      resendLink.innerHTML = '¿Aún no puedes ingresar? <a href="{{ url_for('auth.resend_verification') }}">Reenviar enlace</a>';
+      actionsEl.appendChild(resendLink);
+    } else {
+      titleEl.textContent = "Error de verificación";
+      msgEl.textContent = decodeURIComponent(errorDescription || "El enlace de verificación no es válido o ya fue utilizado.");
+      actionsEl.style.display = "block";
+      btnEl.textContent = "Solicitar nuevo correo";
+      btnEl.href = "{{ url_for('auth.resend_verification') }}";
+    }
     return;
   }
 

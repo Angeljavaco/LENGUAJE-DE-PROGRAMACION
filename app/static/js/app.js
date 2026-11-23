@@ -1,4 +1,12 @@
 (() => {
+  // Si Supabase redirigió con parámetros en el hash a una página que no es /auth/confirm
+  if (window.location.hash && (window.location.hash.includes('error=') || window.location.hash.includes('access_token='))) {
+    if (!window.location.pathname.includes('/auth/confirm')) {
+      window.location.href = '/auth/confirm' + window.location.hash;
+      return;
+    }
+  }
+
   document.documentElement.classList.add('js-enabled');
 
   const toggle = document.querySelector('.menu-toggle');

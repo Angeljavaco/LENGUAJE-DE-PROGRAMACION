@@ -31,7 +31,13 @@ def register():
 
         # Si Supabase está configurado, registrar en Supabase Auth
         if supabase_auth.is_supabase_configured() and not current_app.config.get("TESTING"):
-            res = supabase_auth.signup(email, password, metadata={"name": name, "role": role})
+            confirm_url = url_for("auth.confirm", _external=True)
+            res = supabase_auth.signup(
+                email,
+                password,
+                metadata={"name": name, "role": role},
+                redirect_to=confirm_url
+            )
             if not res["success"]:
                 flash(res.get("error", "Error al crear la cuenta en Supabase."), "error")
                 return render_template("auth.html", mode="register")

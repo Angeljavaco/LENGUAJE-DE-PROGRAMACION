@@ -17,7 +17,7 @@ def is_supabase_configured():
     url, key, _ = _get_config()
     return bool(url and key)
 
-def signup(email, password, metadata=None):
+def signup(email, password, metadata=None, redirect_to=None):
     url, key, _ = _get_config()
     if not url or not key:
         return {"success": False, "error": "Supabase no está configurado."}
@@ -31,6 +31,8 @@ def signup(email, password, metadata=None):
         "password": password,
         "data": metadata or {}
     }
+    if redirect_to:
+        payload["options"] = {"email_redirect_to": redirect_to}
 
     try:
         resp = requests.post(f"{url}/auth/v1/signup", json=payload, headers=headers, timeout=10)
