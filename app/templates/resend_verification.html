@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Reenviar verificación · Desperdicio Cero{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <form class="panel auth" method="post" action="{{ url_for('auth.resend_verification') }}">
+    <span class="eyebrow">DESPERDICIO CERO · SEGURIDAD</span>
+    <h1>Reenviar correo de verificación</h1>
+    <p class="auth-intro">Ingresa la dirección de correo con la que te registraste para enviarte un nuevo enlace de activación.</p>
+    
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <label>Correo electrónico
+      <input type="email" name="email" value="{{ email }}" autocomplete="email" required placeholder="tu@correo.com">
+    </label>
+    
+    <button class="button full" type="submit">Enviar nuevo enlace <span aria-hidden="true">→</span></button>
+    
+    <p style="margin-top: 18px; text-align: center;">
+      ¿Recordaste tu contraseña o ya confirmaste? <a href="{{ url_for('auth.login') }}">Iniciar sesión</a>
+    </p>
+  </form>
+</section>
+{% endblock %}
