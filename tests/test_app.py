@@ -12,8 +12,10 @@ def app():
 @pytest.fixture
 def client(app): return app.test_client()
 
-def register(client,name,email,role):
-    return client.post('/auth/register',data={"name":name,"email":email,"password":"password123","role":role},follow_redirects=True)
+def register(client,name,email,role,dni=None):
+    if dni is None:
+        dni = f"{User.query.count() + 1:08d}"
+    return client.post('/auth/register',data={"name":name,"email":email,"dni":dni,"password":"password123","role":role},follow_redirects=True)
 
 def test_register_and_login(client):
     response=register(client,"Ana","ana@test.test","beneficiario")
@@ -29,7 +31,48 @@ def test_food_request_flow(client,app):
     with app.app_context(): food=Food.query.filter_by(name="Manzanas").first(); fid=food.id
     resp=client.post(f'/foods/{fid}/request',data={"quantity":"3"},follow_redirects=True)
     assert b"Solicitud enviada" in resp.data
-    with app.app_context(): assert Request.query.count()==1
+    with app.app_context():
+        req_id = Request.query.one().id
+    certificate = f"/requests/{req_id}/certificate"
+
+    client.post("/auth/logout")
+    client.post("/auth/login", data={"email": "donor@test.test", "password": "password123"})
+    assert client.get(certificate).status_code == 403
+    assert client.post(f"/requests/{req_id}/accept").status_code == 302
+    assert client.post(f"/requests/{req_id}/deliver").status_code == 302
+    assert client.get(certificate).status_code == 403
+
+    client.post("/auth/logout")
+    client.post("/auth/login", data={"email": "benef@test.test", "password": "password123"})
+    assert client.post(f"/requests/{req_id}/received").status_code == 302
+    assert client.get(certificate).status_code == 403
+
+    client.post("/auth/logout")
+    register(client, "Otro donante", "other-donor@test.test", "donante")
+    assert client.get(certificate).status_code == 403
+
+    client.post("/auth/logout")
+    client.post("/auth/login", data={"email": "donor@test.test", "password": "password123"})
+    assert certificate.encode() in client.get("/dashboard").data
+    pdf = client.get(certificate)
+    assert pdf.status_code == 200
+    assert pdf.mimetype == "application/pdf"
+    assert pdf.data.startswith(b"%PDF-")
+    assert f"certificado-donacion-{req_id}.pdf" in pdf.headers["Content-Disposition"]
+
+
+def test_registration_validates_dni(client):
+    for invalid in ("", "1234567", "1234567a", "123456789"):
+        response = register(client, "Ana", "ana@test.test", "beneficiario", invalid)
+        assert b"Ingresa un DNI de 8" in response.data
+    assert User.query.count() == 0
+
+    register(client, "Ana", "ana@test.test", "beneficiario", "01234567")
+    assert User.query.one().dni == "01234567"
+    client.post("/auth/logout")
+    duplicate = register(client, "Otra", "otra@test.test", "donante", "01234567")
+    assert b"No se pudo registrar ese DNI" in duplicate.data
+    assert User.query.count() == 1
 
 def test_api_rejects_negative_quantity(client):
     register(client,"Donante","api@test.test","donante")

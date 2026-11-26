@@ -5,3 +5,4 @@ __pycache__/
 instance/*.db
 reports/*
 !reports/.gitkeep
+instance/*.bak
