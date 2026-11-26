@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_user, logout_user, current_user
+from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models import User
 from app.services import supabase_auth
@@ -21,6 +22,15 @@ def register():
 
         if not name or "@" not in email or len(password) < 8 or role not in ("donante", "beneficiario"):
             flash("Completa los datos correctamente. La contraseña debe tener al menos 8 caracteres.", "error")
+            return render_template("auth.html", mode="register")
+
+        dni = request.form.get("dni", "").strip()
+        if len(dni) != 8 or not dni.isascii() or not dni.isdecimal():
+            flash("Ingresa un DNI de 8 dígitos.", "error")
+            return render_template("auth.html", mode="register")
+
+        if User.query.filter_by(dni=dni).first():
+            flash("No se pudo registrar ese DNI. Revisa el número ingresado.", "error")
             return render_template("auth.html", mode="register")
 
         # Verificar si ya existe en la base de datos local
@@ -53,6 +63,7 @@ def register():
                     role=role,
                     department=department,
                     business=business,
+                    dni=dni,
                     supabase_uid=supabase_uid,
                     is_verified=email_confirmed
                 )
@@ -60,6 +71,7 @@ def register():
                 db.session.add(user)
             else:
                 existing_user.name = name
+                existing_user.dni = dni
                 existing_user.role = role
                 existing_user.supabase_uid = supabase_uid
                 existing_user.is_verified = email_confirmed
@@ -81,10 +93,17 @@ def register():
                 return redirect(url_for("auth.login", email=email))
 
         # Flujo estándar local / testing (sin Supabase)
-        user = User(name=name, email=email, role=role, department=department, business=business, is_verified=True)
+        user = User(name=name, email=email, dni=dni, role=role, department=department, business=business, is_verified=True)
         user.set_password(password)
         db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            if not User.query.filter((User.dni == dni) | (User.email == email)).first():
+                raise
+            flash("El correo o DNI ya está asociado a una cuenta.", "error")
+            return render_template("auth.html", mode="register")
         login_user(user)
         return redirect(url_for("main.dashboard"))
 

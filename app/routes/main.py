@@ -6,6 +6,7 @@ from sqlalchemy import func, or_
 from app import db
 from app.models import User, Food, Request, Alert, ExternalData, ExternalSync, Activity, Conversation
 from app.services.alerts import generate_alerts
+from app.services.certificates import build_donation_certificate
 from app.services.integrations import sync_open_data
 from app.services.inventory import (
     CATEGORIES, UNITS, InventoryConflict, exceeds_quantity, lock_food,
@@ -277,6 +278,25 @@ def request_received(req_id):
     req = db.get_or_404(Request, req_id)
     if req.beneficiary_id != current_user.id or req.status != "Entregada": abort(403)
     req.status = "Recibida"; db.session.commit(); log("recepcion_confirmada", str(req.id)); return redirect(url_for("main.dashboard"))
+
+@bp.get("/requests/<int:req_id>/certificate")
+@login_required
+def donation_certificate(req_id):
+    donation = db.get_or_404(Request, req_id)
+    if (
+        current_user.role != "donante"
+        or donation.food.donor_id != current_user.id
+        or donation.status != "Recibida"
+    ):
+        abort(403)
+
+    output = build_donation_certificate(donation, date.today())
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=f"certificado-donacion-{donation.id}.pdf",
+        mimetype="application/pdf",
+    )
 
 @bp.get("/alerts")
 @login_required

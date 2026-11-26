@@ -49,7 +49,7 @@ def test_local_login_after_register(client):
     # Test fallback flow when TESTING is True
     res = client.post(
         "/auth/register",
-        data={"name": "Lucia", "email": "lucia@test.org", "password": "Password123!", "role": "beneficiario"},
+        data={"name": "Lucia", "email": "lucia@test.org", "dni": "01234567", "password": "Password123!", "role": "beneficiario"},
         follow_redirects=True
     )
     assert res.status_code == 200

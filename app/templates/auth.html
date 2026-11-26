@@ -25,6 +25,12 @@
       <input type="email" name="email" autocomplete="email" required value="{{ email_value or request.form.get('email', request.args.get('email', '')) }}">
     </label>
 
+    {% if mode=='register' %}
+      <label>DNI (8 dígitos)
+        <input name="dni" type="text" inputmode="numeric" minlength="8" maxlength="8" pattern="[0-9]{8}" required>
+      </label>
+    {% endif %}
+
     <label>Contraseña
       <input type="password" name="password" autocomplete="{{ 'new-password' if mode=='register' else 'current-password' }}" minlength="8" required>
     </label>
